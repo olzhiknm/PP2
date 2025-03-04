@@ -2,7 +2,7 @@ import math
 def degreestoradians(degrees):
     return degrees * (math.pi / 180)
 degree = float(input("Input degree: "))
-radian = degrees_to_radians(degree)
+radian = degreestoradians(degree)
 print(f"Output radian: {radian:.6f}")
 #2
 def trapezoid_area(height, base1, base2):
