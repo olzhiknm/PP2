@@ -1,0 +1,71 @@
+import pygame
+
+pygame.init()
+WIDTH, HEIGHT = 600, 400
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Paint App")
+
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+colors = [BLACK, (255, 0, 0), (0, 255, 0), (0, 0, 255)]
+current_color = BLACK
+tool = "brush"
+
+screen.fill(WHITE)
+clock = pygame.time.Clock()
+
+font = pygame.font.SysFont("Arial", 16)
+
+def draw_ui():
+    pygame.draw.rect(screen, (200, 200, 200), (0, 0, WIDTH, 30))
+    for i, color in enumerate(colors):
+        pygame.draw.rect(screen, color, (10 + i*40, 5, 30, 20))
+    tools = ["brush", "rect", "circle", "eraser"]
+    for i, t in enumerate(tools):
+        text = font.render(t, True, BLACK)
+        screen.blit(text, (200 + i*70, 5))
+
+start_pos = None
+
+running = True
+while running:
+    draw_ui()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            x, y = event.pos
+            if y < 30:
+                for i in range(len(colors)):
+                    if 10 + i*40 < x < 40 + i*40:
+                        current_color = colors[i]
+                tools = ["brush", "rect", "circle", "eraser"]
+                for i, t in enumerate(tools):
+                    if 200 + i*70 < x < 200 + i*70 + 60:
+                        tool = t
+            else:
+                start_pos = event.pos
+
+        elif event.type == pygame.MOUSEBUTTONUP:
+            if start_pos:
+                end_pos = event.pos
+                if tool == "rect":
+                    rect = pygame.Rect(start_pos, (end_pos[0] - start_pos[0], end_pos[1] - start_pos[1]))
+                    pygame.draw.rect(screen, current_color, rect, 2)
+                elif tool == "circle":
+                    radius = int(((end_pos[0] - start_pos[0])**2 + (end_pos[1] - start_pos[1])**2)**0.5)
+                    pygame.draw.circle(screen, current_color, start_pos, radius, 2)
+                start_pos = None
+
+    if pygame.mouse.get_pressed()[0]:
+        if tool == "brush":
+            pygame.draw.circle(screen, current_color, pygame.mouse.get_pos(), 4)
+        elif tool == "eraser":
+            pygame.draw.circle(screen, WHITE, pygame.mouse.get_pos(), 10)
+
+    pygame.display.flip()
+    clock.tick(60)
+
+pygame.quit()
