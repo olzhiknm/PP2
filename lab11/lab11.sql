@@ -1,66 +1,81 @@
-CREATE TABLE IF NOT EXISTS phonebook (
+CREATE TABLE phonebook (
     id SERIAL PRIMARY KEY,
-    first_name VARCHAR(50) UNIQUE,
-    phone VARCHAR(20)
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    phone_number VARCHAR(15)
 );
 
-CREATE OR REPLACE FUNCTION search_pattern(patt TEXT)
-RETURNS TABLE(id INT, first_name TEXT, phone TEXT) AS $$
+CREATE OR REPLACE FUNCTION search_phonebook(pattern TEXT)
+RETURNS TABLE(id INT, first_name VARCHAR, last_name VARCHAR, phone_number VARCHAR) AS
+$$
 BEGIN
     RETURN QUERY
-    SELECT * FROM phonebook
-    WHERE first_name ILIKE '%' || patt || '%'
-       OR phone ILIKE '%' || patt || '%';
+    SELECT id, first_name, last_name, phone_number
+    FROM phonebook
+    WHERE first_name ILIKE '%' || pattern || '%'
+       OR last_name ILIKE '%' || pattern || '%'
+       OR phone_number ILIKE '%' || pattern || '%';
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE insert_or_update_user(p_name TEXT, p_phone TEXT)
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE PROCEDURE insert_or_update_user(first_name VARCHAR, last_name VARCHAR, phone_number VARCHAR)
+AS
+$$
 BEGIN
-    IF EXISTS (SELECT 1 FROM phonebook WHERE first_name = p_name) THEN
-        UPDATE phonebook SET phone = p_phone WHERE first_name = p_name;
+    IF EXISTS (
+        SELECT 1 FROM phonebook
+        WHERE phonebook.first_name = first_name AND phonebook.last_name = last_name
+    ) THEN
+        UPDATE phonebook
+        SET phone_number = phone_number
+        WHERE phonebook.first_name = first_name AND phonebook.last_name = last_name;
     ELSE
-        INSERT INTO phonebook (first_name, phone) VALUES (p_name, p_phone);
+        INSERT INTO phonebook (first_name, last_name, phone_number)
+        VALUES (first_name, last_name, phone_number);
     END IF;
 END;
-$$;
+$$ LANGUAGE plpgsql;
 
-CREATE TEMP TABLE IF NOT EXISTS temp_users (
-    name TEXT,
-    phone TEXT
-);
-
-CREATE OR REPLACE PROCEDURE insert_many_users()
-LANGUAGE plpgsql
-AS $$
+CREATE OR REPLACE PROCEDURE insert_multiple_users(user_list TEXT[])
+AS
+$$
 DECLARE
-    u RECORD;
-    invalid_data TEXT := '';
+    user_record TEXT;
+    first_name VARCHAR;
+    last_name VARCHAR;
+    phone_number VARCHAR;
 BEGIN
-    FOR u IN SELECT * FROM temp_users LOOP
-        IF u.phone ~ '^\d{10,15}$' THEN
-            CALL insert_or_update_user(u.name, u.phone);
+    FOREACH user_record IN ARRAY user_list LOOP
+        first_name := split_part(user_record, ',', 1);
+        last_name := split_part(user_record, ',', 2);
+        phone_number := split_part(user_record, ',', 3);
+
+        IF phone_number ~ '^\d{10}$' THEN
+            CALL insert_or_update_user(first_name, last_name, phone_number);
         ELSE
-            invalid_data := invalid_data || u.name || ' (' || u.phone || '), ';
+            RAISE NOTICE 'Invalid phone number: %', phone_number;
         END IF;
     END LOOP;
-    RAISE NOTICE 'Некорректные данные: %', invalid_data;
-END;
-$$;
-
-CREATE OR REPLACE FUNCTION paginate_users(lim INT, off INT)
-RETURNS TABLE(id INT, first_name TEXT, phone TEXT) AS $$
-BEGIN
-    RETURN QUERY
-    SELECT * FROM phonebook ORDER BY id LIMIT lim OFFSET off;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE PROCEDURE delete_user(p_value TEXT)
-LANGUAGE plpgsql
-AS $$
+-- Переименовали параметр 'limit' на 'p_limit', и 'offset' на 'p_offset'
+CREATE OR REPLACE FUNCTION get_phonebook_paginated(p_limit INT, p_offset INT)
+RETURNS TABLE(id INT, first_name VARCHAR, last_name VARCHAR, phone_number VARCHAR) AS
+$$
 BEGIN
-    DELETE FROM phonebook WHERE first_name = p_value OR phone = p_value;
+    RETURN QUERY
+    SELECT id, first_name, last_name, phone_number
+    FROM phonebook
+    LIMIT p_limit OFFSET p_offset;
 END;
-$$;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE PROCEDURE delete_user_by_username_or_phone(username_or_phone VARCHAR)
+AS
+$$
+BEGIN
+    DELETE FROM phonebook
+    WHERE first_name = username_or_phone OR phone_number = username_or_phone;
+END;
+$$ LANGUAGE plpgsql;
