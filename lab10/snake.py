@@ -41,6 +41,7 @@ def get_or_create_user(username):
     return user_id, level
 
 def save_score(user_id, level, score):
+    print(f"[SAVE] Saving score: User ID={user_id}, Level={level}, Score={score}")  # отладка
     conn = sqlite3.connect("snake_game.db")
     cursor = conn.cursor()
     cursor.execute("UPDATE user_score SET score=?, level=? WHERE user_id=?", (score, level, user_id))
@@ -81,8 +82,11 @@ def game_loop(user_id, start_level):
     running = True
     paused = False
 
+    print("[GAME] Game loop started.")  # отладка
+
     while running:
         while paused:
+            print("[PAUSE] Game is paused.")  # отладка
             win.fill((255, 255, 255))
             pause_text = font.render("Paused. Press 'R' to resume.", True, (0, 0, 0))
             win.blit(pause_text, (150, 180))
@@ -97,9 +101,11 @@ def game_loop(user_id, start_level):
 
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                print("[EVENT] Quit event received.")  # отладка
                 save_score(user_id, level, score)
                 running = False
             if event.type == pygame.KEYDOWN:
+                print(f"[KEYDOWN] Key: {event.key}")  # отладка
                 if event.key == pygame.K_LEFT:
                     x_change, y_change = -10, 0
                 elif event.key == pygame.K_RIGHT:
@@ -115,7 +121,8 @@ def game_loop(user_id, start_level):
         x += x_change
         y += y_change
 
-        if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT or [x, y] in snake or any(pygame.Rect(*[x, y, 10, 10]).colliderect(w) for w in wall_rects):
+        if x < 0 or x >= WIDTH or y < 0 or y >= HEIGHT or (len(snake) > 1 and [x, y] in snake) or any(pygame.Rect(x, y, 10, 10).colliderect(w) for w in wall_rects):
+            print("[COLLISION] Game over condition met.")
             save_score(user_id, level, score)
             running = False
 
@@ -127,8 +134,10 @@ def game_loop(user_id, start_level):
             food = [random.randint(0, WIDTH//10 - 1)*10, random.randint(0, HEIGHT//10 - 1)*10]
             length += 1
             score += 10
+            print(f"[EAT] Food eaten! Score: {score}, Length: {length}")  # отладка
             if score % 50 == 0:
                 level += 1
+                print(f"[LEVEL UP] New level: {level}")  # отладка
                 wall_rects = get_walls(level)
                 speed += 2
 
@@ -144,8 +153,8 @@ def game_loop(user_id, start_level):
 
 if __name__ == "__main__":
     init_db()
-    username = input("Enter your username: ")
+    username = "player"
     user_id, current_level = get_or_create_user(username)
-    print(f"Welcome {username}! Your current level is {current_level}. Starting the game...")
+    print(f"[START] Welcome {username}! Your current level is {current_level}. Starting the game...")
     game_loop(user_id, current_level)
-    print("Game Over.")
+    print("[END] Game Over.")
